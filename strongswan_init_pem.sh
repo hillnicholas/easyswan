@@ -134,7 +134,7 @@ function add_user {
 
 	# generate the client config
 	debug "Generating Server Cert keys and certs..."
-	genConfig nick
+	gen_client_config nick
 
 	# add install script 
 	debug "adding install script for ${USERNAME}..."
@@ -145,11 +145,25 @@ function add_user {
 # generates the client config, given in client/ipsec.conf
 function gen_client_config {
 	USERNAME=$1
-	cat client/ipsec.conf \
+	cat configs/client/ipsec.conf \
 	| sed "s/{{USERNAME}}/${USERNAME}/g" \
 	> $IPSEC_PATH/export/${USERNAME}/ipsec.conf
 }
 
+
+
+function gen_install_config {
+
+	mkdir -p $IPSEC_PATH/client-configs
+	echo "
+mv certs/* /etc/ipsec.d/certs
+mv private/* /etc/ipsec.d/private
+mv ipsec.conf /etc/ipsec.conf
+mv ipsec.secrets /etc/ipsec.secrets
+" 	> $IPSEC_PATH/client-configs/install-config.sh
+	chmod +x $IPSEC_PATH/client-configs/install-config.sh
+
+}
 
 
 function testing() {
@@ -167,10 +181,13 @@ function testing() {
 	debug "Generating Server Cert keys and certs..."
 	gen_server_cert
 
-	debug "adding server cert to ipsec.secrets..."
+	debug "Adding server cert to ipsec.secrets..."
 	add_server_secret
 
-	debug "adding user \"nick\"..."
+	debug "Generating Client Installation Config..."
+	gen_install_config
+
+	debug "Adding user \"nick\"..."
 	add_user nick
 
 	debug "CA cert:"
