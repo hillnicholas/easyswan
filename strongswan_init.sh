@@ -129,6 +129,9 @@ function add_user {
 	# add client cert
 	cp $IPSEC_PATH/certs/${USERNAME}cert.pem $IPSEC_PATH/export/${USERNAME}/certs
 
+	# add server cert
+	cp $IPSEC_PATH/certs/$SERVER_CERTNAME.pem $IPSEC_PATH/export/$USERNAME/certs
+
 	# add client install script 
 	cp $IPSEC_PATH/client-configs/install-config.sh $IPSEC_PATH/export/${USERNAME}/install-config.sh
 
@@ -156,14 +159,21 @@ function gen_install_config {
 
 	mkdir -p $IPSEC_PATH/client-configs
 	echo "
-mv certs/* /etc/ipsec.d/certs
-mv private/* /etc/ipsec.d/private
-mv ipsec.conf /etc/ipsec.conf
-mv ipsec.secrets /etc/ipsec.secrets
+cp certs/* /etc/ipsec.d/certs
+cp private/* /etc/ipsec.d/private
+cp ipsec.conf /etc/ipsec.conf
+cp ipsec.secrets /etc/ipsec.secrets
 " 	> $IPSEC_PATH/client-configs/install-config.sh
 	chmod +x $IPSEC_PATH/client-configs/install-config.sh
 
 }
+
+
+function install_server_config {
+
+	cp configs/server/ipsec.conf /etc/ipsec.conf
+}
+
 
 
 function testing() {
@@ -184,6 +194,9 @@ function testing() {
 	debug "Adding server cert to ipsec.secrets..."
 	add_server_secret
 
+	debug "Adding config to server..."
+	install_server_config 
+
 	debug "Generating Client Installation Config..."
 	gen_install_config
 
@@ -203,7 +216,7 @@ function testing() {
 
 
 function install_server_config {
-	cp server/ipsec.conf /etc/ipsec.conf 
+	cp configs/server/ipsec.conf /etc/ipsec.conf 
 } 
 
 
