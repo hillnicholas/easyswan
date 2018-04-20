@@ -159,8 +159,10 @@ function gen_install_config {
 
 	mkdir -p $IPSEC_PATH/client-configs
 	echo "
-cp certs/* /etc/ipsec.d/certs
-cp private/* /etc/ipsec.d/private
+mkdir -p /etc/ipsec.d/cacerts
+cp certs/* /etc/ipsec.d/certs/
+cp private/* /etc/ipsec.d/private/
+cp cacerts/* /etc/ipsec.d/cacerts/
 cp ipsec.conf /etc/ipsec.conf
 cp ipsec.secrets /etc/ipsec.secrets
 " 	> $IPSEC_PATH/client-configs/install-config.sh
