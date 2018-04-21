@@ -1,0 +1,16 @@
+
+# CA variables
+CA_KEYNAME="hillnetwork_CA_key"
+CA_CERTNAME="hillnetwork_CA_cert"
+CA_DN="C=US, O=hillnetwork, CN=hillnetwork Root CA"
+
+# filename variables, shouldn't matter
+SERVER_KEYNAME=serverkey
+SERVER_CERTNAME=servercert
+
+# this can be an IP address or a domain name
+SERVER_PUBLIC_IP="hillnetwork.us"
+
+
+SERVER_DN="C=US, O=hillnetwork, CN=hillnetwork.us"
+

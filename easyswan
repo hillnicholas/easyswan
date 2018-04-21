@@ -2,30 +2,18 @@
 
 
 
+
 IPSEC_PATH="/etc/ipsec.d"
-IPSEC_LOCAL_PATH=$IPSEC_PATH
-
-# CA variables
-CA_KEYNAME="hillnetwork_CA_key"
-CA_CERTNAME="hillnetwork_CA_cert"
-CA_DN="C=US, O=Hillnetwork, CN=Hillnetwork Root CA"
-
-# Server variables
-SERVER_KEYNAME="serverkey"
-SERVER_CERTNAME="servercert"
-SERVER_PUBLIC_IP=hillnetwork.ddns.net
-SERVER_DN="C=US, O=Hillnetwork, CN=$SERVER_PUBLIC_IP"
+IPSEC_LOCAL_PATH="/usr/local/etc/strongswan"
 
 
-
-# dependencies
 function get_dependencies() {
 	apt update
 	apt install strongswan -y 
 }
 
 
-# 
+ 
 function create_dirs() {
 	mkdir -p $IPSEC_PATH/private
 	mkdir -p $IPSEC_PATH/cacerts
@@ -77,7 +65,6 @@ function gen_server_cert() {
 } 
 
 
-# keep comments
 function clear_server_secrets {
 	grep /etc/ipsec.secrets -e "\\s*#.*" > /etc/ipsec.secrets
 }
@@ -89,9 +76,9 @@ function add_server_secret {
 }
 
 
-function add_user {
+function add_user_rsa {
 	USERNAME="$1" 
-	debug "creating private key for user $username"
+	debug "creating private key for user $USERNAME"
 	# create private key
 	ipsec pki --gen \
 	--type rsa \
@@ -112,32 +99,32 @@ function add_user {
 	--outform pem > $IPSEC_PATH/certs/${USERNAME}cert.pem
 
 	# add to export
-	mkdir -p $IPSEC_PATH/export/$USERNAME
-	mkdir -p $IPSEC_PATH/export/$USERNAME/cacerts
-	mkdir -p $IPSEC_PATH/export/$USERNAME/certs
-	mkdir -p $IPSEC_PATH/export/$USERNAME/private
+	mkdir -p $IPSEC_LOCAL_PATH/export/$USERNAME
+	mkdir -p $IPSEC_LOCAL_PATH/export/$USERNAME/cacerts
+	mkdir -p $IPSEC_LOCAL_PATH/export/$USERNAME/certs
+	mkdir -p $IPSEC_LOCAL_PATH/export/$USERNAME/private
 
 	# add secret for user config 
-	echo ": RSA $IPSEC_PATH/private/${USERNAME}key.pem" >> $IPSEC_PATH/export/$USERNAME/ipsec.secrets
+	echo ": RSA $IPSEC_PATH/private/${USERNAME}key.pem" >> $IPSEC_LOCAL_PATH/export/$USERNAME/ipsec.secrets
 
 	# add CA cert
-	cp $IPSEC_PATH/cacerts/$CA_CERTNAME.pem $IPSEC_PATH/export/$USERNAME/cacerts
+	cp $IPSEC_PATH/cacerts/$CA_CERTNAME.pem $IPSEC_LOCAL_PATH/export/$USERNAME/cacerts
 
 	# add private key	
-	cp $IPSEC_PATH/private/${USERNAME}key.pem $IPSEC_PATH/export/$USERNAME/private
+	cp $IPSEC_PATH/private/${USERNAME}key.pem $IPSEC_LOCAL_PATH/export/$USERNAME/private
 
 	# add client cert
-	cp $IPSEC_PATH/certs/${USERNAME}cert.pem $IPSEC_PATH/export/${USERNAME}/certs
+	cp $IPSEC_PATH/certs/${USERNAME}cert.pem $IPSEC_LOCAL_PATH/export/${USERNAME}/certs
 
 	# add server cert
-	cp $IPSEC_PATH/certs/$SERVER_CERTNAME.pem $IPSEC_PATH/export/$USERNAME/certs
+	cp $IPSEC_PATH/certs/$SERVER_CERTNAME.pem $IPSEC_LOCAL_PATH/export/$USERNAME/certs
 
 	# add client install script 
-	cp $IPSEC_PATH/client-configs/install-config.sh $IPSEC_PATH/export/${USERNAME}/install-config.sh
+	cp $IPSEC_LOCAL_PATH/client-configs/install-config.sh $IPSEC_LOCAL_PATH/export/${USERNAME}/install-config.sh
 
 	# generate the client config
 	debug "Generating Server Cert keys and certs..."
-	gen_client_config nick
+	gen_client_config $USERNAME
 
 	# add install script 
 	debug "adding install script for ${USERNAME}..."
@@ -147,17 +134,26 @@ function add_user {
 
 # generates the client config, given in client/ipsec.conf
 function gen_client_config {
+	debug "USERNAME: $USERNAME"
 	USERNAME=$1
+	RIGHT=$SERVER_PUBLIC_IP	
+	if ! [[ $RIGHT =~ [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3} ]]; then 
+		RIGHT="@${RIGHT}"
+	fi
+
 	cat configs/client/ipsec.conf \
 	| sed "s/{{USERNAME}}/${USERNAME}/g" \
-	> $IPSEC_PATH/export/${USERNAME}/ipsec.conf
+	| sed "s/{{SERVER_PUBLIC_IP}}/${SERVER_PUBLIC_IP}/" \
+	| sed "s/{{SERVER_ID}}/${RIGHT}/" \
+	| sed "s/{{CLIENT_CERTNAME}}/${USERNAME}cert.pem/" \
+	> $IPSEC_LOCAL_PATH/export/${USERNAME}/ipsec.conf
 }
 
 
 
 function gen_install_config {
 
-	mkdir -p $IPSEC_PATH/client-configs
+	mkdir -p $IPSEC_LOCAL_PATH/client-configs
 	echo "
 mkdir -p /etc/ipsec.d/cacerts
 cp certs/* /etc/ipsec.d/certs/
@@ -165,22 +161,29 @@ cp private/* /etc/ipsec.d/private/
 cp cacerts/* /etc/ipsec.d/cacerts/
 cp ipsec.conf /etc/ipsec.conf
 cp ipsec.secrets /etc/ipsec.secrets
-" 	> $IPSEC_PATH/client-configs/install-config.sh
-	chmod +x $IPSEC_PATH/client-configs/install-config.sh
+" 	> $IPSEC_LOCAL_PATH/client-configs/install-config.sh
+	chmod +x $IPSEC_LOCAL_PATH/client-configs/install-config.sh
 
 }
 
 
 function install_server_config {
 
-	cp configs/server/ipsec.conf /etc/ipsec.conf
+	# determine if host is defined by IP or hostname
+	LEFT=$SERVER_PUBLIC_IP	
+	if ! [[ $LEFT =~ [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3} ]]; then 
+		LEFT="@${LEFT}"
+	fi
+	cat configs/server/ipsec.conf | \
+	sed "s/{{SERVER_PUBLIC_IP}}/${LEFT}/"  | \
+	sed "s/{{SERVER_CERTNAME}}/${SERVER_CERTNAME}/" > \
+	/etc/ipsec.conf
 }
 
 
 
-function testing() {
-
-	# commented because it takes forever and has been tested
+function easyswan_init {
+	
 	debug "Updating Apt and getting dependencies..."
 	get_dependencies
 
@@ -202,23 +205,69 @@ function testing() {
 	debug "Generating Client Installation Config..."
 	gen_install_config
 
-	debug "Adding user \"nick\"..."
-	add_user nick
-
-	debug "CA cert:"
-	ipsec pki --print --in $IPSEC_PATH/cacerts/$CA_CERTNAME.pem
-
-	debug "Server cert:"
-	ipsec pki --print --in $IPSEC_PATH/certs/$SERVER_CERTNAME.pem
-
-	debug "Client cert:"
-	ipsec pki --print --in $IPSEC_PATH/certs/nickcert.pem
-
 }
 
 
-function install_server_config {
-	cp configs/server/ipsec.conf /etc/ipsec.conf 
+function define_vars {
+
+	# create the vars file 
+	echo "
+# CA variables
+CA_KEYNAME=
+CA_CERTNAME=
+CA_DN=
+
+# filename variables, shouldn't matter
+SERVER_KEYNAME=serverkey
+SERVER_CERTNAME=servercert
+
+# this can be an IP address or a domain name
+SERVER_PUBLIC_IP=
+
+
+SERVER_DN=
+" > vars
+
+	# collect vars
+	echo "Defining VPN variables..."
+	read -p "Public IP or domain name: " SERVER_PUBLIC_IP
+
+	echo "Defining variables for DN"
+	read -p "Country: " C
+	read -p "Organization: " ORG
+
+	# CA vars
+	sed -i "s/^CA_KEYNAME=.*/CA_KEYNAME=\"${ORG}_CA_key\"/" vars
+	sed -i "s/^CA_CERTNAME=.*/CA_CERTNAME=\"${ORG}_CA_cert\"/" vars
+	CA_DN="C=${C}, O=${ORG}, CN=${ORG} Root CA"
+	sed -i "s/^CA_DN.*/CA_DN=\"${CA_DN}\"/" vars
+
+	# server vars
+	sed -i "s/^SERVER_PUBLIC_IP=.*/SERVER_PUBLIC_IP=\"${SERVER_PUBLIC_IP}\"/" vars
+	SERVER_DN="C=${C}, O=${ORG}, CN=${SERVER_PUBLIC_IP}"
+	sed -i "s/^SERVER_DN=.*/SERVER_DN=\"${SERVER_DN}\"/" vars
+}
+
+
+function easyswan_adduser {
+
+	read -p "username: " NAME
+
+	read -p "authentication type (RSA|EAP): " AUTH_TYPE
+	
+	case $AUTH_TYPE in 
+		"RSA" | "rsa" )
+			add_user_rsa $NAME
+		;;
+		"EAP" | "eap" )
+			echo "not implemented yet"
+			exit
+		;;
+		*) 
+			echo "\"$AUTH_TYPE\" not found"
+			exit
+		;;
+	esac
 } 
 
 
@@ -229,6 +278,40 @@ function debug {
 
 }
 
-testing
-chown ubuntu -R /etc/ipsec.d/export
+
+function easyswan_help {
+	echo "
+usage: easyswan [option]
+
+options:	
+	init:
+	defines variables, installs strongswan, creates the public key infrastructure, installs server configurations.
+
+	adduser:
+	starts intractive prompt to add a user.
+
+	help:
+	display this message
+"
+}
+
+
+case $1 in 
+	init)
+		define_vars
+		source vars
+		easyswan_init
+		;;
+	
+	adduser)
+		source vars
+		easyswan_adduser
+		;;
+	
+	help | * )
+		easyswan_help
+		;;
+	
+esac
+		
 
