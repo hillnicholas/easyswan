@@ -176,7 +176,7 @@ function install_server_config {
 	fi
 	cat configs/server/ipsec.conf | \
 	sed "s/{{SERVER_PUBLIC_IP}}/${LEFT}/"  | \
-	sed "s/{{SERVER_CERTNAME}}/${SERVER_CERTNAME}/" > \
+	sed "s/{{SERVER_CERTNAME}}/${SERVER_CERTNAME}.pem/" > \
 	/etc/ipsec.conf
 }
 
