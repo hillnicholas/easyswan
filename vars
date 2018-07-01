@@ -1,16 +1,16 @@
 
 # CA variables
-CA_KEYNAME=
-CA_CERTNAME=
-CA_DN=
+CA_KEYNAME="Hillnetwork_CA_key"
+CA_CERTNAME="Hillnetwork_CA_cert"
+CA_DN="C=US, O=Hillnetwork, CN=Hillnetwork Root CA"
 
 # filename variables, shouldn't matter
 SERVER_KEYNAME=serverkey
 SERVER_CERTNAME=servercert
 
 # this can be an IP address or a domain name
-SERVER_PUBLIC_IP=
+SERVER_PUBLIC_IP="frederick.hillnetwork.me"
 
 
-SERVER_DN=
+SERVER_DN="C=US, O=Hillnetwork, CN=frederick.hillnetwork.me"
 

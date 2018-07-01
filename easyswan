@@ -9,7 +9,7 @@ IPSEC_LOCAL_PATH="/usr/local/etc/strongswan"
 
 function get_dependencies() {
 	apt update
-	apt install strongswan -y 
+	apt install -y strongswan strongswan-pki
 }
 
 
